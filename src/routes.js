@@ -17,7 +17,7 @@ const authenticate = (req, res, next) => {
 }
 
 const saveHandle = async (req, res) => {
-  const { cfHandle } = req.body
+ const { handle: cfHandle } = req.body
   try {
     const user = await prisma.user.update({
       where: { id: req.userId },
