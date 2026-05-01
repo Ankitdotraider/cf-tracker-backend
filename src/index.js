@@ -18,5 +18,5 @@ app.post('/login', login)
 app.put('/me/handle', authenticate, saveHandle)
 app.get('/me/stats', authenticate, getStats)
 
-const PORT = process.env.PORT || 3000
+const PORT = process.env.PORT || 8080;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`))
