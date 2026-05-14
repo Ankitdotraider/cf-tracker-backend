@@ -29,6 +29,7 @@ const saveHandle = async (req, res) => {
   }
 }
 
+
 const getStats = async (req, res) => {
   try {
     const user = await prisma.user.findUnique({ where: { id: req.userId } })
@@ -40,4 +41,54 @@ const getStats = async (req, res) => {
   }
 }
 
-module.exports = { authenticate, saveHandle, getStats }
+const getContests = async (req, res) => {
+  try {
+    const user = await prisma.user.findUnique({ where: { id: req.userId } })
+    if (!user.cfHandle) return res.status(400).json({ error: 'No CF handle saved' })
+
+    const handle = user.cfHandle
+
+    const [ratingRes, statusRes] = await Promise.all([
+      axios.get(`https://codeforces.com/api/user.rating?handle=${handle}`),
+      axios.get(`https://codeforces.com/api/user.status?handle=${handle}`)
+    ])
+
+    const contests = ratingRes.data.result
+    const submissions = statusRes.data.result
+
+    const contestData = contests.map(contest => {
+      const contestSubs = submissions.filter(
+        s => s.author.participantType === 'CONTESTANT' &&
+             s.contestId === contest.contestId
+      )
+
+      const solved = contestSubs
+        .filter(s => s.verdict === 'OK')
+        .map(s => s.problem.index)
+
+      const attempted = contestSubs
+        .filter(s => s.verdict !== 'OK')
+        .map(s => s.problem.index)
+        .filter(idx => !solved.includes(idx))
+
+      return {
+        contestId: contest.contestId,
+        contestName: contest.contestName,
+        date: new Date(contest.ratingUpdateTimeSeconds * 1000).toISOString(),
+        rank: contest.rank,
+        ratingBefore: contest.oldRating,
+        ratingAfter: contest.newRating,
+        delta: contest.newRating - contest.oldRating,
+        solved,
+        missed: attempted
+      }
+    })
+
+    res.json({ result: contestData.reverse() })
+  } catch (err) {
+    console.error(err)
+    res.status(500).json({ error: 'Failed to fetch contest data' })
+  }
+}
+
+module.exports = { authenticate, saveHandle, getStats, getContests }
